@@ -1,0 +1,238 @@
+// Source code is decompiled from a .class file using FernFlower decompiler (from Intellij IDEA).
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.Image;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.Timer;
+
+public class Cards {
+   JFrame frame = new JFrame("Number Matching Card Game");
+   JLabel textLabel = new JLabel();
+   JPanel textPanel = new JPanel();
+   JPanel boardPanel = new JPanel();
+   JPanel restartGamePanel = new JPanel();
+   JButton restartButton = new JButton("Restart Game");
+   ArrayList<Card> cardSet;
+   ArrayList<JButton> board;
+   ImageIcon cardBackImageIcon;
+   JButton selectedCard1;
+   JButton selectedCard2;
+   Timer hideCardTimer;
+   Timer gameTimeTimer;
+   int errorCount = 0;
+   int pairsToFind;
+   int pairsFound = 0;
+   int secondsPlayed = 0;
+   int cardWidth = 90;
+   int cardHeight = 120;
+   boolean gameReady = false;
+
+   public Cards(String difficulty) {
+      byte rows;
+      byte columns;
+      byte numberOfPairs;
+      if (difficulty.equalsIgnoreCase("HARD")) {
+         numberOfPairs = 9;
+         rows = 3;
+         columns = 6;
+      } else if (difficulty.equalsIgnoreCase("MEDIUM")) {
+         numberOfPairs = 7;
+         rows = 2;
+         columns = 7;
+      } else {
+         numberOfPairs = 5;
+         rows = 2;
+         columns = 5;
+      }
+
+      this.pairsToFind = numberOfPairs;
+      int boardWidth = columns * this.cardWidth;
+      int boardHeight = rows * this.cardHeight;
+      this.frame.setSize(boardWidth, boardHeight + 100);
+      this.frame.setLocationRelativeTo((Component)null);
+      this.frame.setResizable(false);
+      this.frame.setDefaultCloseOperation(3);
+      this.frame.setLayout(new BorderLayout());
+      this.loadImages(numberOfPairs);
+      this.shuffleCards();
+      this.setupTextPanel(boardWidth);
+      this.setupBoardPanel(rows, columns);
+      this.setupRestartPanel(boardWidth);
+      this.setupTimer();
+      this.startGameTimer();
+      this.frame.setVisible(true);
+      this.gameReady = true;
+   }
+
+   void loadImages(int numberOfPairs) {
+      this.cardSet = new ArrayList();
+      Image backImg = (new ImageIcon(this.getClass().getResource("/img/cardback.jpeg"))).getImage();
+      this.cardBackImageIcon = new ImageIcon(backImg.getScaledInstance(this.cardWidth, this.cardHeight, 4));
+
+      for(int i = 0; i < numberOfPairs; ++i) {
+         String cardName = "card" + i;
+         Image cardImg = (new ImageIcon(this.getClass().getResource("/img/" + cardName + ".jpeg"))).getImage();
+         ImageIcon cardIcon = new ImageIcon(cardImg.getScaledInstance(this.cardWidth, this.cardHeight, 4));
+         Card card = new Card(cardName, cardIcon);
+         this.cardSet.add(card);
+         this.cardSet.add(card);
+      }
+
+   }
+
+   void shuffleCards() {
+      Collections.shuffle(this.cardSet);
+   }
+
+   void setupTextPanel(int width) {
+      this.textLabel.setFont(new Font("Arial", 1, 20));
+      this.textLabel.setHorizontalAlignment(0);
+      this.textLabel.setText("Errors: 0 | Time: 0s");
+      this.textPanel.setPreferredSize(new Dimension(width, 30));
+      this.textPanel.add(this.textLabel);
+      this.frame.add(this.textPanel, "North");
+   }
+
+   void setupBoardPanel(int rows, int cols) {
+      this.board = new ArrayList();
+      this.boardPanel.setLayout(new GridLayout(rows, cols));
+
+      for(int i = 0; i < this.cardSet.size(); ++i) {
+         JButton tile = new JButton();
+         tile.setPreferredSize(new Dimension(this.cardWidth, this.cardHeight));
+         tile.setIcon(this.cardBackImageIcon);
+         tile.setFocusable(false);
+         tile.putClientProperty("flipped", false);
+         tile.addActionListener((e) -> {
+            this.handleCardClick(tile);
+         });
+         this.board.add(tile);
+         this.boardPanel.add(tile);
+      }
+
+      this.frame.add(this.boardPanel, "Center");
+   }
+
+   void setupRestartPanel(int width) {
+      this.restartButton.setFont(new Font("Arial", 1, 16));
+      this.restartButton.setPreferredSize(new Dimension(width, 30));
+      this.restartButton.addActionListener((e) -> {
+         this.resetGame();
+      });
+      this.restartGamePanel.add(this.restartButton);
+      this.frame.add(this.restartGamePanel, "South");
+   }
+
+   void setupTimer() {
+      this.hideCardTimer = new Timer(1000, (e) -> {
+         this.hideCards();
+      });
+      this.hideCardTimer.setRepeats(false);
+   }
+
+   void startGameTimer() {
+      this.gameTimeTimer = new Timer(1000, (e) -> {
+         ++this.secondsPlayed;
+         this.textLabel.setText("Errors: " + this.errorCount + " | Time: " + this.secondsPlayed + "s");
+      });
+      this.gameTimeTimer.start();
+   }
+
+   void handleCardClick(JButton tile) {
+      if (this.gameReady) {
+         if (!(Boolean)tile.getClientProperty("flipped")) {
+            int index = this.board.indexOf(tile);
+            tile.setIcon(((Card)this.cardSet.get(index)).cardImage);
+            tile.putClientProperty("flipped", true);
+            if (this.selectedCard1 == null) {
+               this.selectedCard1 = tile;
+            } else if (this.selectedCard2 == null) {
+               this.selectedCard2 = tile;
+               this.gameReady = false;
+               this.checkMatch();
+            }
+
+         }
+      }
+   }
+
+   void checkMatch() {
+      int index1 = this.board.indexOf(this.selectedCard1);
+      int index2 = this.board.indexOf(this.selectedCard2);
+      if (((Card)this.cardSet.get(index1)).cardName.equals(((Card)this.cardSet.get(index2)).cardName)) {
+         this.selectedCard1.setEnabled(false);
+         this.selectedCard2.setEnabled(false);
+         this.selectedCard1 = null;
+         this.selectedCard2 = null;
+         this.gameReady = true;
+         ++this.pairsFound;
+         if (this.pairsFound == this.pairsToFind) {
+            this.gameTimeTimer.stop();
+            int finalScore = 1000 - this.errorCount * 10 - this.secondsPlayed * 2;
+            if (finalScore < 0) {
+               finalScore = 0;
+            }
+
+            this.frame.dispose();
+            Scoreboard.showScoreboard(finalScore, this.secondsPlayed);
+         }
+      } else {
+         ++this.errorCount;
+         this.textLabel.setText("Errors: " + this.errorCount + " | Time: " + this.secondsPlayed + "s");
+         this.hideCardTimer.start();
+      }
+
+   }
+
+   void hideCards() {
+      this.selectedCard1.setIcon(this.cardBackImageIcon);
+      this.selectedCard2.setIcon(this.cardBackImageIcon);
+      this.selectedCard1.putClientProperty("flipped", false);
+      this.selectedCard2.putClientProperty("flipped", false);
+      this.selectedCard1 = null;
+      this.selectedCard2 = null;
+      this.gameReady = true;
+   }
+
+   void resetGame() {
+      this.gameReady = false;
+      this.selectedCard1 = null;
+      this.selectedCard2 = null;
+      this.pairsFound = 0;
+      this.errorCount = 0;
+      this.secondsPlayed = 0;
+      this.textLabel.setText("Errors: 0 | Time: 0s");
+      this.shuffleCards();
+      Iterator var2 = this.board.iterator();
+
+      while(var2.hasNext()) {
+         JButton tile = (JButton)var2.next();
+         tile.setIcon(this.cardBackImageIcon);
+         tile.putClientProperty("flipped", false);
+         tile.setEnabled(true);
+      }
+
+      this.gameReady = true;
+      this.gameTimeTimer.restart();
+   }
+
+   class Card {
+      String cardName;
+      ImageIcon cardImage;
+
+      Card(String cardName, ImageIcon cardImage) {
+         this.cardName = cardName;
+         this.cardImage = cardImage;
+      }
+   }
+}
